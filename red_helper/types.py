@@ -1,8 +1,9 @@
+import functools
 from typing import AnyStr, AsyncGenerator, Tuple
 
 from aredis import StrictRedis
 
-from .cache import CacheIt, KeyType, TTL, Encoder, Decoder, json_decoder, json_encoder
+from .cache import CacheIt, KeyType, TTL, Encoder, Decoder, json_decoder, json_encoder, pickle_decoder, pickle_encoder
 
 
 class DangerousOperation(Exception):
@@ -42,9 +43,17 @@ class RedHelper:
     def cache_it(self, key: KeyType, ttl: TTL = None, encoder: Encoder = json_encoder,
                  decoder: Decoder = json_decoder, force: bool = False):
         def _warps(func):
-            return CacheIt(self.redis, key, ttl, encoder, decoder, force, prefix=self.prefix).mount(func)
+            it = CacheIt(self.redis, key, ttl, encoder, decoder, force, prefix=self.prefix).mount(func)
+            functools.wraps(func)(it)
+            return it
 
         return _warps
+
+    def json_cache(self, key: KeyType, ttl: TTL = None, force: bool = False):
+        return self.cache_it(key, ttl, force=force)
+
+    def pickle_cache(self, key: KeyType, ttl: TTL = None, force: bool = False):
+        return self.cache_it(key, ttl, encoder=pickle_encoder, decoder=pickle_decoder, force=force)
 
 
 class RedHash:
