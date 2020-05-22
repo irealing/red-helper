@@ -3,6 +3,10 @@ from typing import AnyStr, AsyncGenerator, Tuple
 from aredis import StrictRedis
 
 
+class DangerousOperation(NotImplemented):
+    pass
+
+
 class RedHelper:
     def __init__(self, redis: StrictRedis, prefix: str = ''):
         self.redis = redis
@@ -10,6 +14,28 @@ class RedHelper:
 
     def red_hash(self, resource: str):
         return RedHash(self.redis, resource if not self.prefix else "{}{}".format(self.prefix, resource))
+
+    async def delete(self, key: AnyStr, *name: AnyStr) -> int:
+        return await self.redis.delete(key, *name)
+
+    async def find(self, match: AnyStr = None) -> AsyncGenerator[Tuple[str, str], None]:
+        cursor = 0
+        while True:
+            cursor, rows = await self.redis.scan(cursor=cursor, match=match)
+            for row in rows.items():
+                yield row
+            if not cursor:
+                break
+
+    async def set(self, key: AnyStr, value: AnyStr) -> int:
+        return await self.redis.set(key, value)
+
+    async def __aiter__(self) -> AsyncGenerator[Tuple[str, str], None]:
+        async for row in self.find():
+            yield row
+
+    def clear(self):
+        raise DangerousOperation("FLUSHDB")
 
 
 class RedHash:
