@@ -2,6 +2,8 @@ from typing import AnyStr, AsyncGenerator, Tuple
 
 from aredis import StrictRedis
 
+from .cache import CacheIt, KeyType, TTL, Encoder, Decoder, json_decoder, json_encoder
+
 
 class DangerousOperation(Exception):
     pass
@@ -36,6 +38,13 @@ class RedHelper:
 
     def clear(self):
         raise DangerousOperation('FLUSHDB')
+
+    def cache_it(self, key: KeyType, ttl: TTL = None, encoder: Encoder = json_encoder,
+                 decoder: Decoder = json_decoder, force: bool = False):
+        def _warps(func):
+            return CacheIt(self.redis, key, ttl, encoder, decoder, force, prefix=self.prefix).mount(func)
+
+        return _warps
 
 
 class RedHash:
