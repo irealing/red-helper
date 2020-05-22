@@ -1,5 +1,6 @@
-from aredis import StrictRedis
 from typing import AnyStr, AsyncGenerator, Tuple
+
+from aredis import StrictRedis
 
 
 class RedHelper:
@@ -13,14 +14,13 @@ class RedHelper:
 
 class RedHash:
     def __init__(self, redis: StrictRedis, resource: str):
-        self._redis = redis
+        self._redis: StrictRedis = redis
         self._resource = resource
-        self._auto_remove = self._auto_remove
 
     async def remove(self):
-        self._redis.delete(self._resource)
+        await self._redis.delete(self._resource)
 
-    def __aenter__(self):
+    async def __aenter__(self) -> 'RedHash':
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -28,11 +28,25 @@ class RedHash:
         if exc_val:
             raise exc_val
 
-    async def get(self, key: AnyStr, default_value: AnyStr = None) -> AnyStr:
+    async def has(self, key: AnyStr) -> bool:
+        return await self._redis.hexists(key)
+
+    async def set(self, key: AnyStr, value: AnyStr):
+        await self._redis.hset(self._resource, key, value)
+
+    async def get(self, key: AnyStr, default_value: AnyStr = None) -> bytes:
         ret = await self._redis.hget(self._resource, key)
         return default_value if ret is None else ret
 
-    async def __aiter__(self) -> AsyncGenerator[Tuple[bytes, bytes], None, None]:
+    async def find(self, match: AnyStr = None) -> AsyncGenerator[Tuple[bytes, bytes], None]:
         cursor = 0
         while True:
-            await self._redis.hscan()
+            cursor, rows = await self._redis.hscan(self._resource, cursor=cursor, match=match)
+            for row in rows.items():
+                yield row
+            if not cursor:
+                break
+
+    async def __aiter__(self):
+        async for row in self.find():
+            yield row
