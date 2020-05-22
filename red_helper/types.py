@@ -3,7 +3,7 @@ from typing import AnyStr, AsyncGenerator, Tuple
 from aredis import StrictRedis
 
 
-class DangerousOperation(NotImplemented):
+class DangerousOperation(Exception):
     pass
 
 
@@ -35,7 +35,7 @@ class RedHelper:
             yield row
 
     def clear(self):
-        raise DangerousOperation("FLUSHDB")
+        raise DangerousOperation('FLUSHDB')
 
 
 class RedHash:
