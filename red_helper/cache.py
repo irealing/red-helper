@@ -48,11 +48,12 @@ class CacheIt:
         key = self._key(*args, **kwargs)
         if self.prefix:
             key = ''.join((self.prefix, key))
-        if not self._force and (cache:= await self._redis.get(key)):
+        cache = None
+        if not self._force and (cache := await self._redis.get(key)):
             return self._decoder(cache)
         ret = self._method(*args, **kwargs)
         if isinstance(ret, Awaitable) and inspect.isawaitable(ret):
             ret = await ret
-        data = self._encoder(ret)
-        await self._redis.set(key, data, ex=self._ttl)
+        cache = self._encoder(ret)
+        await self._redis.set(key, cache, ex=self._ttl)
         return ret
