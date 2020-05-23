@@ -30,7 +30,7 @@ def pickle_decoder(data: bytes) -> Any:
 
 class CacheIt:
     def __init__(self, redis: StrictRedis, key: KeyType, ttl: TTL = None, encoder: Encoder = json_encoder,
-                 decoder: Decoder = json_decoder, force: bool = False, prefix: AnyStr = ''):
+                 decoder: Decoder = json_decoder, force: bool = False):
         self._redis = redis
         self._key = (lambda *args, **kwargs: key) if isinstance(key, (str, bytes)) else key
         self._ttl = ttl
@@ -38,7 +38,6 @@ class CacheIt:
         self._decoder = decoder
         self._force = force
         self._method = None
-        self.prefix = prefix
 
     def mount(self, method: Callable) -> 'CacheIt':
         self._method = method
@@ -46,8 +45,6 @@ class CacheIt:
 
     async def __call__(self, *args, **kwargs):
         key = self._key(*args, **kwargs)
-        if self.prefix:
-            key = ''.join((self.prefix, key))
         cache = None
         if not self._force and (cache := await self._redis.get(key)):
             return self._decoder(cache)
