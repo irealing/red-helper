@@ -1,5 +1,5 @@
 import functools
-from typing import AnyStr, AsyncGenerator, Tuple
+from typing import AnyStr, AsyncGenerator, Tuple, Optional
 
 from .cache import CacheIt, KeyType, TTL, Encoder, Decoder, json_decoder, json_encoder, pickle_decoder, pickle_encoder
 from .types import RedMapping, RedCollection
@@ -122,3 +122,43 @@ class RedSet(RedCollection):
 
     async def size(self) -> int:
         return await self.redis.scard(self.resource)
+
+
+class RedList(RedCollection):
+    async def add(self, value: AnyStr, *args: AnyStr) -> int:
+        return await self.lpush(value, *args)
+
+    async def lpush(self, value: AnyStr, *args: AnyStr) -> int:
+        return await self.redis.lpush(self.resource, value, *args)
+
+    async def rpush(self, value: AnyStr, *args: AnyStr) -> int:
+        return await self.redis.rpush(self.resource, value, *args)
+
+    async def lpop(self) -> Optional[bytes]:
+        return await self.redis.lpop(self.resource)
+
+    async def rpop(self) -> Optional[bytes]:
+        return await self.redis.rpop(self.resource)
+
+    async def remove(self, value: str) -> int:
+        return await self.rm_(value)
+
+    async def rm_(self, value: str, count: int = 0) -> int:
+        return await self.redis.lrem(self.resource, value, count=count)
+
+    async def __aiter__(self) -> AsyncGenerator[bytes, None]:
+        async for item in self.iterator():
+            yield item
+
+    async def iterator(self, read_size: int = 1000) -> AsyncGenerator[bytes, None]:
+        t = 0
+        while True:
+            x, y = t * read_size, (t + 1) * read_size
+            items = await self.redis.lrange(self.resource, x, y)
+            for item in items:
+                yield item
+            if len(items) < read_size:
+                break
+
+    async def size(self) -> int:
+        return await self.redis.llen(self.resource)
