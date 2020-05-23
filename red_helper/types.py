@@ -1,6 +1,6 @@
 import abc
 from aredis import StrictRedis
-from typing import AnyStr, AsyncGenerator, Tuple
+from typing import AnyStr, AsyncGenerator, Tuple, Callable
 
 
 class RedObject(metaclass=abc.ABCMeta):
@@ -28,9 +28,8 @@ class RedObject(metaclass=abc.ABCMeta):
     async def size(self) -> int:
         pass
 
-    @abc.abstractmethod
     async def clear(self) -> int:
-        pass
+        return self._redis.delete(self._resource)
 
 
 class RedMapping(RedObject, metaclass=abc.ABCMeta):
@@ -52,4 +51,26 @@ class RedMapping(RedObject, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     async def get(self, key: AnyStr, default_value: AnyStr = None) -> bytes:
+        pass
+
+
+class RedCollection(RedObject, metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    async def add(self, value: AnyStr, *args: AnyStr) -> int:
+        pass
+
+    @abc.abstractmethod
+    async def remove(self, value: str) -> int:
+        pass
+
+    @abc.abstractmethod
+    async def __aiter__(self) -> AsyncGenerator[bytes, None]:
+        pass
+
+    async def filter(self, f: Callable[[bytes], bool] = lambda _: True) -> AsyncGenerator[bytes, None]:
+        async for item in self:
+            if f(item):
+                yield item
+
+    async def pop(self) -> bytes:
         pass

@@ -2,7 +2,7 @@ import functools
 from typing import AnyStr, AsyncGenerator, Tuple
 
 from .cache import CacheIt, KeyType, TTL, Encoder, Decoder, json_decoder, json_encoder, pickle_decoder, pickle_encoder
-from .types import RedMapping
+from .types import RedMapping, RedCollection
 from aredis import StrictRedis
 
 
@@ -105,5 +105,20 @@ class RedHash(RedMapping):
     async def size(self) -> int:
         return await self.redis.hlen(self.resource)
 
-    async def clear(self) -> int:
-        return await self.redis.delete(self.resource)
+
+class RedSet(RedCollection):
+    async def add(self, value: AnyStr, *args: AnyStr) -> int:
+        return await self.redis.sadd(self.resource, value, *args)
+
+    async def remove(self, value: str) -> int:
+        return await self.redis.srem(value)
+
+    async def __aiter__(self) -> AsyncGenerator[bytes, None]:
+        cursor = 0
+        while True:
+            items = await self.redis.sscan(self.resource, cursor=cursor)
+            for item in items:
+                yield item
+
+    async def size(self) -> int:
+        return await self.redis.scard(self.resource)
