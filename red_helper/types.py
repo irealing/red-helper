@@ -16,22 +16,30 @@ class RedObject(metaclass=abc.ABCMeta):
     def redis(self) -> StrictRedis:
         return self._redis
 
-    @abc.abstractmethod
     async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.clear()
+        if exc_val:
+            raise exc_val
+
+    @abc.abstractmethod
+    async def size(self) -> int:
         pass
 
     @abc.abstractmethod
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def clear(self) -> int:
         pass
 
 
 class RedMapping(RedObject, metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    async def __aiter__(self) -> AsyncGenerator[Tuple[bytes, bytes]]:
+    async def __aiter__(self):
         pass
 
     @abc.abstractmethod
-    async def find(self, match: AnyStr = None) -> AsyncGenerator[Tuple[bytes, bytes]]:
+    async def find(self, match: AnyStr = None) -> AsyncGenerator[Tuple[bytes, bytes], None]:
         pass
 
     @abc.abstractmethod
