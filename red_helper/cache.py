@@ -98,9 +98,9 @@ class GenRemoveIt(RemoveIt):
         if inspect.isasyncgenfunction(self.method):
             async for item in self.method(*args, **kwargs):
                 yield item
-            else:
-                for item in self.method(*args, **kwargs):
-                    yield item
+        else:
+            for item in self.method(*args, **kwargs):
+                yield item
         await self.redis.delete(self.key(*args, **kwargs))
 
 
