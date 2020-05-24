@@ -1,6 +1,10 @@
 import abc
+from typing import AnyStr, AsyncGenerator, Tuple, Callable, Union
+
 from aredis import StrictRedis
-from typing import AnyStr, AsyncGenerator, Tuple, Callable
+from datetime import timedelta
+
+TTL = Union[int, timedelta]
 
 
 class RedObject(metaclass=abc.ABCMeta):
@@ -46,7 +50,7 @@ class RedMapping(RedObject, metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    async def set(self, key: AnyStr, value: AnyStr):
+    async def set(self, key: AnyStr, value: AnyStr, ex: TTL = None):
         pass
 
     @abc.abstractmethod

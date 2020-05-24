@@ -4,10 +4,10 @@ from typing import AnyStr, AsyncGenerator, Tuple, Optional
 from aredis import StrictRedis
 
 from .cache import (
-    CacheIt, KeyType, TTL, Encoder, Decoder, json_decoder, json_encoder, pickle_decoder,
+    CacheIt, KeyType, Encoder, Decoder, json_decoder, json_encoder, pickle_decoder,
     pickle_encoder, _RmOpFactory
 )
-from .types import RedMapping, RedCollection
+from .types import RedMapping, RedCollection, TTL
 
 
 class RedHelper(RedMapping):
@@ -35,7 +35,7 @@ class RedHelper(RedMapping):
             if not cursor:
                 break
 
-    async def set(self, key: AnyStr, value: AnyStr) -> int:
+    async def set(self, key: AnyStr, value: AnyStr, ex: TTL = None) -> int:
         return await self.redis.set(key, value)
 
     async def __aiter__(self) -> AsyncGenerator[bytes, None]:
@@ -63,7 +63,7 @@ class RedHelper(RedMapping):
     def cache_it(self, key: KeyType, ttl: TTL = None, encoder: Encoder = json_encoder,
                  decoder: Decoder = json_decoder, force: bool = False):
         def _warps(func):
-            it = CacheIt(self.redis, key, ttl, encoder, decoder, force).mount(func)
+            it = CacheIt(self, key, ttl, encoder, decoder, force).mount(func)
             return functools.wraps(func)(it)
 
         return _warps
@@ -100,8 +100,8 @@ class RedHash(RedMapping):
     async def has(self, key: AnyStr) -> bool:
         return await self.redis.hexists(key)
 
-    async def set(self, key: AnyStr, value: AnyStr):
-        await self.redis.hset(self._resource, key, value)
+    async def set(self, key: AnyStr, value: AnyStr, ex: TTL = None) -> int:
+        return await self.redis.hset(self._resource, key, value)
 
     async def get(self, key: AnyStr, default_value: AnyStr = None) -> bytes:
         ret = await self.redis.hget(self._resource, key)

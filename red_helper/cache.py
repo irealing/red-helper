@@ -1,19 +1,15 @@
+import functools
 import inspect
 import json
 import pickle
-from datetime import timedelta
 from typing import Callable, AnyStr, Union, Any, Awaitable
-import functools
-from aredis import StrictRedis
+
+from ._exc import UnsupportedOperation
+from .types import RedMapping, TTL
 
 KeyType = Union[AnyStr, Callable[[], AnyStr]]
 Encoder = Callable[[Any], AnyStr]
-TTL = Union[int, timedelta]
 Decoder = Callable[[bytes], Any]
-
-
-class UnsupportedOperation(Exception):
-    pass
 
 
 def json_encoder(o: Any) -> AnyStr:
@@ -33,14 +29,14 @@ def pickle_decoder(data: bytes) -> Any:
 
 
 class CacheOpt:
-    def __init__(self, redis: StrictRedis, key: KeyType):
-        self._redis = redis
+    def __init__(self, mapping: RedMapping, key: KeyType):
+        self._mapping = mapping
         self.key = (lambda *args, **kwargs: key) if isinstance(key, (str, bytes)) else key
         self._method = None
 
     @property
-    def redis(self) -> StrictRedis:
-        return self._redis
+    def mapping(self) -> RedMapping:
+        return self._mapping
 
     @property
     def method(self):
@@ -56,10 +52,9 @@ class CacheOpt:
 
 class CacheIt(CacheOpt):
 
-    def __init__(self, redis: StrictRedis, key: KeyType, ttl: TTL = None, encoder: Encoder = json_encoder,
+    def __init__(self, mapping: RedMapping, key: KeyType, ttl: TTL = None, encoder: Encoder = json_encoder,
                  decoder: Decoder = json_decoder, force: bool = False):
-        super().__init__(redis, key)
-
+        super().__init__(mapping, key)
         self._ttl = ttl
         self._encoder = encoder
         self._decoder = decoder
@@ -68,19 +63,20 @@ class CacheIt(CacheOpt):
     async def __call__(self, *args, **kwargs):
         key = self.key(*args, **kwargs)
         cache = None
-        if not self._force and (cache := await self._redis.get(key)):
+        if not self._force and (cache := await self.mapping.get(key)):
             return self._decoder(cache)
         ret = self._method(*args, **kwargs)
         if isinstance(ret, Awaitable) and inspect.isawaitable(ret):
             ret = await ret
         cache = self._encoder(ret)
-        await self._redis.set(key, cache, ex=self._ttl)
+        await self.mapping.set(key, cache, ex=self._ttl)
         return ret
 
 
 class RemoveIt(CacheOpt):
-    def __init__(self, redis: StrictRedis, key: KeyType, by_return: bool = False):
-        super().__init__(redis, key)
+
+    def __init__(self, mapping: RedMapping, key: KeyType, by_return: bool = False):
+        super().__init__(mapping, key)
         self._by_return = by_return
 
     async def __call__(self, *args, **kwargs):
@@ -88,7 +84,7 @@ class RemoveIt(CacheOpt):
         if isinstance(ret, Awaitable) and inspect.isawaitable(ret):
             ret = await ret
         k = self.key(*args, **kwargs) if not self._by_return else self.key(ret)
-        await self.redis.delete(k)
+        await self.mapping.delete(k)
         return ret
 
 
@@ -101,16 +97,16 @@ class GenRemoveIt(RemoveIt):
         else:
             for item in self.method(*args, **kwargs):
                 yield item
-        await self.redis.delete(self.key(*args, **kwargs))
+        await self.mapping.delete(self.key(*args, **kwargs))
 
 
 class _RmOpFactory:
     @staticmethod
-    def new(redis: StrictRedis, func: Callable, key: KeyType, by_return: bool = False) -> 'RemoveIt':
+    def new(mapping: RedMapping, func: Callable, key: KeyType, by_return: bool = False) -> 'RemoveIt':
         if inspect.isasyncgenfunction(func) or inspect.isgeneratorfunction(func):
             if by_return:
                 raise UnsupportedOperation()
             wrapper = GenRemoveIt
         else:
             wrapper = RemoveIt
-        return functools.wraps(func)(wrapper(redis, key, by_return).mount(func))
+        return functools.wraps(func)(wrapper(mapping, key, by_return).mount(func))
