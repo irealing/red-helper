@@ -9,7 +9,7 @@ class _BaseMapping(RedMapping, metaclass=abc.ABCMeta):
                  force: bool = False) -> _DecoratorFunc:
         def _wraps(func):
             it = CacheIt(self, key, ttl, encoder, decoder, force).mount(func)
-            return functools.wraps(it)
+            return functools.wraps(func)(it)
 
         return _wraps
 
