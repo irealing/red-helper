@@ -1,16 +1,13 @@
-import functools
 from typing import AnyStr, AsyncGenerator, Tuple, Optional
 
-from .cache import (
-    CacheIt, KeyType, TTL, Encoder, Decoder, json_decoder, json_encoder, pickle_decoder,
-    pickle_encoder, RemoveIt, GenRemoveIt, _RmOpFactory
-)
-import inspect
-from .types import RedMapping, RedCollection
 from aredis import StrictRedis
 
+from ._base import _BaseMapping
+from .types import RedCollection, TTL
+from ._exc import UnsupportedOperation
 
-class RedHelper(RedMapping):
+
+class RedHelper(_BaseMapping):
 
     def __init__(self, redis: StrictRedis):
         super().__init__(redis, "")
@@ -35,8 +32,8 @@ class RedHelper(RedMapping):
             if not cursor:
                 break
 
-    async def set(self, key: AnyStr, value: AnyStr) -> int:
-        return await self.redis.set(key, value)
+    async def set(self, key: AnyStr, value: AnyStr, ex: TTL = None) -> int:
+        return await self.redis.set(key, value, ex=ex)
 
     async def __aiter__(self) -> AsyncGenerator[bytes, None]:
         async for row in self.find():
@@ -60,31 +57,11 @@ class RedHelper(RedMapping):
     def red_list(self, resource: AnyStr) -> 'RedList':
         return RedList(self.redis, resource)
 
-    def cache_it(self, key: KeyType, ttl: TTL = None, encoder: Encoder = json_encoder,
-                 decoder: Decoder = json_decoder, force: bool = False):
-        def _warps(func):
-            it = CacheIt(self.redis, key, ttl, encoder, decoder, force).mount(func)
-            return functools.wraps(func)(it)
-
-        return _warps
-
     async def size(self) -> int:
         return await self.redis.dbsize()
 
-    def json_cache(self, key: KeyType, ttl: TTL = None, force: bool = False):
-        return self.cache_it(key, ttl, force=force)
 
-    def pickle_cache(self, key: KeyType, ttl: TTL = None, force: bool = False):
-        return self.cache_it(key, ttl, encoder=pickle_encoder, decoder=pickle_decoder, force=force)
-
-    def remove_it(self, key: KeyType, by_return: bool = False):
-        def _wraps(func):
-            return _RmOpFactory.new(self.redis, func, key, by_return)
-
-        return _wraps
-
-
-class RedHash(RedMapping):
+class RedHash(_BaseMapping):
 
     async def remove(self):
         await self.redis.delete(self._resource)
@@ -100,8 +77,10 @@ class RedHash(RedMapping):
     async def has(self, key: AnyStr) -> bool:
         return await self.redis.hexists(key)
 
-    async def set(self, key: AnyStr, value: AnyStr):
-        await self.redis.hset(self._resource, key, value)
+    async def set(self, key: AnyStr, value: AnyStr, ex: TTL = None) -> int:
+        if ex:
+            raise UnsupportedOperation("Can't set TTL for key of Hash table")
+        return await self.redis.hset(self._resource, key, value)
 
     async def get(self, key: AnyStr, default_value: AnyStr = None) -> bytes:
         ret = await self.redis.hget(self._resource, key)
@@ -125,6 +104,9 @@ class RedHash(RedMapping):
 
     async def incr(self, key: AnyStr, value: int = 1) -> int:
         return await self.redis.hincrby(self.resource, key, value)
+
+    async def delete(self, key: AnyStr, *args: AnyStr) -> int:
+        return await self.redis.hdel(self.resource, key, *args)
 
 
 class RedSet(RedCollection):
