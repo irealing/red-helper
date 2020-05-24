@@ -4,6 +4,7 @@ from aredis import StrictRedis
 
 from ._base import _BaseMapping
 from .types import RedCollection, TTL
+from ._exc import UnsupportedOperation
 
 
 class RedHelper(_BaseMapping):
@@ -32,7 +33,7 @@ class RedHelper(_BaseMapping):
                 break
 
     async def set(self, key: AnyStr, value: AnyStr, ex: TTL = None) -> int:
-        return await self.redis.set(key, value)
+        return await self.redis.set(key, value, ex=ex)
 
     async def __aiter__(self) -> AsyncGenerator[bytes, None]:
         async for row in self.find():
@@ -77,6 +78,8 @@ class RedHash(_BaseMapping):
         return await self.redis.hexists(key)
 
     async def set(self, key: AnyStr, value: AnyStr, ex: TTL = None) -> int:
+        if ex:
+            raise UnsupportedOperation("Can't set TTL for key of Hash table")
         return await self.redis.hset(self._resource, key, value)
 
     async def get(self, key: AnyStr, default_value: AnyStr = None) -> bytes:
