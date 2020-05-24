@@ -51,6 +51,9 @@ class RedHelper(RedMapping):
     async def clear(self):
         await self.redis.flushdb()
 
+    async def incr(self, key: AnyStr, value: int = 1) -> int:
+        return await self.redis.incrby(key, value)
+
     def read_set(self, resource: AnyStr) -> 'RedSet':
         return RedSet(self.redis, resource)
 
@@ -119,6 +122,9 @@ class RedHash(RedMapping):
 
     async def size(self) -> int:
         return await self.redis.hlen(self.resource)
+
+    async def incr(self, key: AnyStr, value: int = 1) -> int:
+        return await self.redis.hincrby(self.resource, key, value)
 
 
 class RedSet(RedCollection):

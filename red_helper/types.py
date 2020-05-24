@@ -53,6 +53,10 @@ class RedMapping(RedObject, metaclass=abc.ABCMeta):
     async def get(self, key: AnyStr, default_value: AnyStr = None) -> bytes:
         pass
 
+    @abc.abstractmethod
+    async def incr(self, key: AnyStr, value: int = 1) -> int:
+        pass
+
 
 class RedCollection(RedObject, metaclass=abc.ABCMeta):
     @abc.abstractmethod
