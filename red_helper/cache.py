@@ -3,13 +3,17 @@ import json
 import pickle
 from datetime import timedelta
 from typing import Callable, AnyStr, Union, Any, Awaitable
-
+import functools
 from aredis import StrictRedis
 
 KeyType = Union[AnyStr, Callable[[], AnyStr]]
 Encoder = Callable[[Any], AnyStr]
 TTL = Union[int, timedelta]
 Decoder = Callable[[bytes], Any]
+
+
+class UnsupportedOperation(Exception):
+    pass
 
 
 def json_encoder(o: Any) -> AnyStr:
@@ -46,6 +50,9 @@ class CacheOpt:
         self._method = method
         return self
 
+    async def __call__(self, *args, **kwargs):
+        pass
+
 
 class CacheIt(CacheOpt):
 
@@ -75,23 +82,8 @@ class RemoveIt(CacheOpt):
     def __init__(self, redis: StrictRedis, key: KeyType, by_return: bool = False):
         super().__init__(redis, key)
         self._by_return = by_return
-        self.__call__ = None
 
-    def mount(self, method: Callable) -> 'RemoveIt':
-        if self._by_return and (inspect.isgeneratorfunction(method) or inspect.isasyncgenfunction(method)):
-            raise RuntimeError()
-        super().mount(method)
-        self.__call__ = self._select()
-        return self
-
-    def _select(self):
-        if inspect.isasyncgenfunction(self.method):
-            return self.remove_gen
-        if inspect.isgeneratorfunction(self.method):
-            return self.remove_gen
-        return self.remove
-
-    async def remove(self, *args, **kwargs):
+    async def __call__(self, *args, **kwargs):
         ret = self.method(*args, **kwargs)
         if isinstance(ret, Awaitable) and inspect.isawaitable(ret):
             ret = await ret
@@ -99,11 +91,26 @@ class RemoveIt(CacheOpt):
         await self.redis.delete(k)
         return ret
 
-    async def remove_gen(self, *args, **kwargs):
+
+class GenRemoveIt(RemoveIt):
+
+    async def __call__(self, *args, **kwargs):
         if inspect.isasyncgenfunction(self.method):
             async for item in self.method(*args, **kwargs):
                 yield item
             else:
                 for item in self.method(*args, **kwargs):
                     yield item
-        await self.redis.delete(self.method)
+        await self.redis.delete(self.key(*args, **kwargs))
+
+
+class _RmOpFactory:
+    @staticmethod
+    def new(redis: StrictRedis, func: Callable, key: KeyType, by_return: bool = False) -> 'RemoveIt':
+        if inspect.isasyncgenfunction(func) or inspect.isgeneratorfunction(func):
+            if by_return:
+                raise UnsupportedOperation()
+            wrapper = GenRemoveIt
+        else:
+            wrapper = RemoveIt
+        return functools.wraps(func)(wrapper(redis, key, by_return).mount(func))

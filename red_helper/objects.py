@@ -1,9 +1,11 @@
 import functools
 from typing import AnyStr, AsyncGenerator, Tuple, Optional
 
-from .cache import (CacheIt, KeyType, TTL, Encoder, Decoder, json_decoder, json_encoder, pickle_decoder, pickle_encoder,
-                    RemoveIt)
-
+from .cache import (
+    CacheIt, KeyType, TTL, Encoder, Decoder, json_decoder, json_encoder, pickle_decoder,
+    pickle_encoder, RemoveIt, GenRemoveIt, _RmOpFactory
+)
+import inspect
 from .types import RedMapping, RedCollection
 from aredis import StrictRedis
 
@@ -74,8 +76,7 @@ class RedHelper(RedMapping):
 
     def remove_it(self, key: KeyType, by_return: bool = False):
         def _wraps(func):
-            rm = RemoveIt(self.redis, key, by_return).mount(func)
-            return functools.wraps(func)(rm)
+            return _RmOpFactory.new(self.redis, func, key, by_return)
 
         return _wraps
 
