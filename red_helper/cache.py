@@ -1,31 +1,9 @@
 import functools
 import inspect
-import json
-import pickle
-from typing import Callable, AnyStr, Union, Any, Awaitable
+from typing import Callable, Awaitable
 
 from ._exc import UnsupportedOperation
-from .types import RedMapping, TTL
-
-KeyType = Union[AnyStr, Callable[[], AnyStr]]
-Encoder = Callable[[Any], AnyStr]
-Decoder = Callable[[bytes], Any]
-
-
-def json_encoder(o: Any) -> AnyStr:
-    return json.dumps(o)
-
-
-def pickle_encoder(o: Any) -> AnyStr:
-    return pickle.dumps(o)
-
-
-def json_decoder(data: bytes) -> Any:
-    return json.loads(data)
-
-
-def pickle_decoder(data: bytes) -> Any:
-    return pickle.loads(data)
+from .types import RedMapping, TTL, KeyType, Encoder, Decoder, json_decoder, json_encoder
 
 
 class CacheOpt:

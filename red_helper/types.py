@@ -1,10 +1,33 @@
 import abc
-from typing import AnyStr, AsyncGenerator, Tuple, Callable, Union
+from typing import AnyStr, AsyncGenerator, Tuple, Callable, Union, Generic, TypeVar, Any
 
 from aredis import StrictRedis
 from datetime import timedelta
+import json
+import pickle
 
+_Ret = TypeVar('_Ret')
 TTL = Union[int, timedelta]
+Encoder = Callable[[Any], AnyStr]
+Decoder = Callable[[bytes], Any]
+KeyType = Union[AnyStr, Callable[[], AnyStr]]
+_DecoratorFunc = Callable[[Callable[[...], _Ret]], Callable[[...], _Ret]]
+
+
+def json_encoder(o: Any) -> AnyStr:
+    return json.dumps(o)
+
+
+def pickle_encoder(o: Any) -> AnyStr:
+    return pickle.dumps(o)
+
+
+def json_decoder(data: bytes) -> Any:
+    return json.loads(data)
+
+
+def pickle_decoder(data: bytes) -> Any:
+    return pickle.loads(data)
 
 
 class RedObject(metaclass=abc.ABCMeta):
@@ -67,6 +90,15 @@ class RedMapping(RedObject, metaclass=abc.ABCMeta):
 
     def counter(self, key: AnyStr) -> 'Counter':
         return Counter(self, key)
+
+    @abc.abstractmethod
+    def cache_it(self, key: KeyType, ttl: TTL = None, encoder: Encoder = json_encoder,
+                 decoder: Decoder = json_decoder, force: bool = False) -> _DecoratorFunc:
+        pass
+
+    @abc.abstractmethod
+    def remove_it(self, key: KeyType, by_return: bool = False) -> _DecoratorFunc:
+        pass
 
 
 class RedCollection(RedObject, metaclass=abc.ABCMeta):
