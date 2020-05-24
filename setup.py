@@ -13,7 +13,7 @@ setup(
     description="基于异步IO的Redis缓存操作工具",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="github.com/irealing/red-helper",
+    url="https://github.com/irealing/red-helper",
     platforms='any',
     license="MIT"
 )
