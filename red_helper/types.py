@@ -57,6 +57,13 @@ class RedMapping(RedObject, metaclass=abc.ABCMeta):
     async def incr(self, key: AnyStr, value: int = 1) -> int:
         pass
 
+    @abc.abstractmethod
+    async def delete(self, key: AnyStr, *args: AnyStr) -> int:
+        pass
+
+    def counter(self, key: AnyStr) -> 'Counter':
+        return Counter(self, key)
+
 
 class RedCollection(RedObject, metaclass=abc.ABCMeta):
     @abc.abstractmethod
@@ -78,3 +85,30 @@ class RedCollection(RedObject, metaclass=abc.ABCMeta):
 
     async def pop(self) -> bytes:
         pass
+
+
+class Counter:
+    def __init__(self, mapping: RedMapping, resource: AnyStr, step: int = 1):
+        self._mapping = mapping
+        self._resource = resource
+        self._step = step
+
+    async def get(self):
+        return await self.incr(self._step)
+
+    async def incr(self, step: int = None) -> int:
+        return await self._mapping.incr(self._resource, step)
+
+    async def value(self) -> int:
+        return await self._mapping.get(self._resource) or 0
+
+    async def clear(self):
+        await self._mapping.delete(self._resource)
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.clear()
+        if exc_val:
+            raise exc_val

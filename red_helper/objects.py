@@ -1,13 +1,13 @@
 import functools
 from typing import AnyStr, AsyncGenerator, Tuple, Optional
 
+from aredis import StrictRedis
+
 from .cache import (
     CacheIt, KeyType, TTL, Encoder, Decoder, json_decoder, json_encoder, pickle_decoder,
-    pickle_encoder, RemoveIt, GenRemoveIt, _RmOpFactory
+    pickle_encoder, _RmOpFactory
 )
-import inspect
 from .types import RedMapping, RedCollection
-from aredis import StrictRedis
 
 
 class RedHelper(RedMapping):
@@ -125,6 +125,9 @@ class RedHash(RedMapping):
 
     async def incr(self, key: AnyStr, value: int = 1) -> int:
         return await self.redis.hincrby(self.resource, key, value)
+
+    async def delete(self, key: AnyStr, *args: AnyStr) -> int:
+        return await self.redis.hdel(self.resource, key, *args)
 
 
 class RedSet(RedCollection):
