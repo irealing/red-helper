@@ -11,7 +11,8 @@ TTL = Union[int, timedelta]
 Encoder = Callable[[Any], AnyStr]
 Decoder = Callable[[bytes], Any]
 KeyType = Union[AnyStr, Callable[[], AnyStr]]
-_DecoratorFunc = Callable[[Callable[..., _Ret]], Callable[..., _Ret]]
+_Func = Callable[..., _Ret]
+_DecoratorFunc = Callable[[_Func], _Func]
 
 
 def json_encoder(o: Any) -> AnyStr:
