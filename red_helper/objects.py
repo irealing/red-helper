@@ -1,16 +1,12 @@
-import functools
 from typing import AnyStr, AsyncGenerator, Tuple, Optional
 
 from aredis import StrictRedis
 
-from .cache import (
-    CacheIt, KeyType, Encoder, Decoder, json_decoder, json_encoder, pickle_decoder,
-    pickle_encoder, _RmOpFactory
-)
-from .types import RedMapping, RedCollection, TTL
+from ._base import _BaseMapping
+from .types import RedCollection, TTL
 
 
-class RedHelper(RedMapping):
+class RedHelper(_BaseMapping):
 
     def __init__(self, redis: StrictRedis):
         super().__init__(redis, "")
@@ -60,31 +56,11 @@ class RedHelper(RedMapping):
     def red_list(self, resource: AnyStr) -> 'RedList':
         return RedList(self.redis, resource)
 
-    def cache_it(self, key: KeyType, ttl: TTL = None, encoder: Encoder = json_encoder,
-                 decoder: Decoder = json_decoder, force: bool = False):
-        def _warps(func):
-            it = CacheIt(self, key, ttl, encoder, decoder, force).mount(func)
-            return functools.wraps(func)(it)
-
-        return _warps
-
     async def size(self) -> int:
         return await self.redis.dbsize()
 
-    def json_cache(self, key: KeyType, ttl: TTL = None, force: bool = False):
-        return self.cache_it(key, ttl, force=force)
 
-    def pickle_cache(self, key: KeyType, ttl: TTL = None, force: bool = False):
-        return self.cache_it(key, ttl, encoder=pickle_encoder, decoder=pickle_decoder, force=force)
-
-    def remove_it(self, key: KeyType, by_return: bool = False):
-        def _wraps(func):
-            return _RmOpFactory.new(self.redis, func, key, by_return)
-
-        return _wraps
-
-
-class RedHash(RedMapping):
+class RedHash(_BaseMapping):
 
     async def remove(self):
         await self.redis.delete(self._resource)
