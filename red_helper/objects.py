@@ -1,6 +1,6 @@
 from typing import AnyStr, AsyncGenerator, Tuple, Optional
 
-from aredis import StrictRedis
+from redis.asyncio import StrictRedis
 
 from ._base import _BaseMapping
 from .types import RedCollection, TTL
@@ -13,8 +13,8 @@ class RedHelper(_BaseMapping):
         super().__init__(redis, "")
 
     @classmethod
-    def new(cls, url: str, db: int = 0, **kwargs) -> 'RedHelper':
-        redis = StrictRedis.from_url(url, db, **kwargs)
+    def new(cls, url: str, **kwargs) -> 'RedHelper':
+        redis = StrictRedis.from_url(url, **kwargs)
         return cls(redis)
 
     def red_hash(self, resource: AnyStr) -> 'RedHash':

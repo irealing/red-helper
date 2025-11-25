@@ -22,7 +22,7 @@ red_helper.new("redis://redis:6379",db=0)
 
 ```python
 from red_helper import RedHelper
-from aredis import StrictRedis
+from redis.asyncio import StrictRedis
 
 redis=StrictRedis(**{})
 helper=RedHelper(redis)
@@ -34,7 +34,7 @@ helper=RedHelper(redis)
 import red_helper
 import asyncio
 
-helper = red_helper.new("redis://redis", db=0)
+helper = red_helper.new("redis://redis/0")
 
 
 async def simple_operations():

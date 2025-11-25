@@ -1,1 +1,1 @@
-aredis
+redis
