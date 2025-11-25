@@ -7,7 +7,7 @@ setup(
     name='red_helper',
     packages=find_packages(),
     author="Memory_Leak",
-    version="0.1.2",
+    version="0.1.3",
     auth_email="irealing@163.com",
     python_requires=">=3.9",
     description="基于异步IO的Redis缓存操作工具",

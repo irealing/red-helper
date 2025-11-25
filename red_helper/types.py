@@ -4,7 +4,7 @@ import pickle
 from datetime import timedelta
 from typing import AnyStr, AsyncGenerator, Tuple, Callable, Union, TypeVar, Any
 
-from aredis import StrictRedis
+from redis.asyncio import StrictRedis
 
 _Ret = TypeVar('_Ret')
 TTL = Union[int, timedelta]
