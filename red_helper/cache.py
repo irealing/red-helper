@@ -12,6 +12,11 @@ class CacheOpt:
         self.key = (lambda *args, **kwargs: key) if isinstance(key, (str, bytes)) else key
         self._method = None
 
+    def __get__(self, instance, owner):
+        if instance is None:
+            return self
+        return functools.partial(self.__call__, instance)
+
     @property
     def mapping(self) -> RedMapping:
         return self._mapping
